@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Planning UTG</title>
+  
+  <script type="text/javascript" src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
+  <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+  
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f5f7; margin: 20px; }
+    h1 { color: #1976d2; text-align: center; }
+    #visualization { border: 1px solid #d3d3d3; background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .vis-item { border-radius: 4px; border: none; color: white; font-size: 14px; padding: 5px; background-color: #4CAF50; }
+  </style>
+</head>
+<body>
+
+  <h1>Planning UTG - Pannello Cloud</h1>
+  <div id="visualization"></div>
+
+  <script type="text/javascript">
+    // Configurazione Firebase originaria dal tuo screenshot
+    const firebaseConfig = {
+      apiKey: "AIzaSyAh6i2pE3Xl92-Ww4Vp-qf6E2_sY7w7VpI",
+      authDomain: "planning-utg-c2f62.firebaseapp.com",
+      projectId: "planning-utg-c2f62",
+      storageBucket: "planning-utg-c2f62.appspot.com",
+      messagingSenderId: "1093155122177",
+      appId: "1:1093155122177:web:9c3f9a3f9a3f9a3f9a3f9a"
+    };
+
+    // Inizializzazione
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const container = document.getElementById('visualization');
+    
+    const groups = new vis.DataSet([
+      { id: 1, content: '<b>Gemma</b>' },
+      { id: 2, content: '<b>Davide</b>' },
+      { id: 3, content: '<b>Daniela</b>' },
+      { id: 4, content: '<b>Claudio</b>' },
+      { id: 5, content: '<b>Raffaella</b>' }
+    ]);
+
+    const items = new vis.DataSet();
+
+    // Blocco di emergenza locale (appare subito per evitare schermate vuote)
+    items.add({
+      id: "progetto_test",
+      content: "Progetto Test (Sposta e testa)",
+      group: 1,
+      start: "2026-05-18T09:00:00.000Z",
+      end: "2026-05-19T18:00:00.000Z"
+    });
+
+    const options = {
+      stack: false,
+      start: '2026-05-17', 
+      end: '2026-05-25',
+      editable: true,
+      onMove: function (item, callback) {
+        // Salva su Firebase quando viene spostato
+        db.collection("tasks").doc(item.id).set({
+          content: item.content,
+          group: item.group,
+          start: item.start.toISOString(),
+          end: item.end.toISOString()
+        }, { merge: true })
+        .then(() => { console.log("Salva OK"); })
+        .catch((error) => { console.error("Errore: ", error); });
+        
+        callback(item);
+      }
+    };
+
+    const timeline = new vis.Timeline(container, items, groups, options);
+
+    // Ascolta i cambiamenti dal Cloud
+    db.collection("tasks").onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        const task = {
+          id: change.doc.id,
+          content: data.content,
+          group: data.group,
+          start: new Date(data.start),
+          end: new Date(data.end)
+        };
+        if (change.type === "added" || change.type === "modified") {
+          items.update(task);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
