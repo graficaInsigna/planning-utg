@@ -3,13 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Planning UTG</title>
-  
   <script type="text/javascript" src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
   <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
-  
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
   <style>
     body { font-family: Arial, sans-serif; background-color: #f4f5f7; margin: 20px; }
     h1 { color: #1976d2; text-align: center; }
@@ -23,7 +20,6 @@
   <div id="visualization"></div>
 
   <script type="text/javascript">
-    // Configurazione Firebase originaria dal tuo screenshot
     const firebaseConfig = {
       apiKey: "AIzaSyAh6i2pE3Xl92-Ww4Vp-qf6E2_sY7w7VpI",
       authDomain: "planning-utg-c2f62.firebaseapp.com",
@@ -33,10 +29,8 @@
       appId: "1:1093155122177:web:9c3f9a3f9a3f9a3f9a3f9a"
     };
 
-    // Inizializzazione
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
     const container = document.getElementById('visualization');
     
     const groups = new vis.DataSet([
@@ -49,10 +43,10 @@
 
     const items = new vis.DataSet();
 
-    // Blocco di emergenza locale (appare subito per evitare schermate vuote)
+    // ID numerico pulito per evitare conflitti con le regole Firebase
     items.add({
-      id: "progetto_test",
-      content: "Progetto Test (Sposta e testa)",
+      id: 999,
+      content: "Progetto Test Sbloccato",
       group: 1,
       start: "2026-05-18T09:00:00.000Z",
       end: "2026-05-19T18:00:00.000Z"
@@ -64,23 +58,26 @@
       end: '2026-05-25',
       editable: true,
       onMove: function (item, callback) {
-        // Salva su Firebase quando viene spostato
-        db.collection("tasks").doc(item.id).set({
+        // Proviamo a salvare e intercettiamo l'esito reale
+        db.collection("tasks").doc(item.id.toString()).set({
           content: item.content,
           group: item.group,
           start: item.start.toISOString(),
           end: item.end.toISOString()
         }, { merge: true })
-        .then(() => { console.log("Salva OK"); })
-        .catch((error) => { console.error("Errore: ", error); });
-        
-        callback(item);
+        .then(() => { 
+          alert("Salvataggio riuscito sul Cloud!");
+          callback(item);
+        })
+        .catch((error) => { 
+          alert("Firebase ha rifiutato il salvataggio! Errore: " + error.message);
+          callback(null); // Annulla lo spostamento visivo se c'è un errore reale
+        });
       }
     };
 
     const timeline = new vis.Timeline(container, items, groups, options);
 
-    // Ascolta i cambiamenti dal Cloud
     db.collection("tasks").onSnapshot((snapshot) => {
       snapshot.docChanges().forEach((change) => {
         const data = change.doc.data();
